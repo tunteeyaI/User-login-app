@@ -1,13 +1,53 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 
 <head>
-    <title> Verify Email Page</title>
-    <link rel="stylesheet" href="{{ url_for('static',filename='style.css') }}">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verify Email</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 
-<body>
+<body class="auth-body">
+    <div class="auth-page">
+        <div class="auth-card">
+            <div class="brand">
+                <span class="brand-mark">V</span>
+                <h1>Verify Email</h1>
+            </div>
 
+            <p class="subtitle">Please confirm your email before continuing.</p>
+
+            {% with messages = get_flashed_messages() %}
+            {% if messages %}
+            <div class="flash-container">
+                {% for message in messages %}
+                <div class="flash-message">{{ message }}</div>
+                {% endfor %}
+            </div>
+            {% endif %}
+            {% endwith %}
+
+            <form method="POST" class="auth-form">
+                <label class="input-group">
+                    <span>Email Address</span>
+                    <input type="email" name="email" placeholder="Enter your email" value="{{ email }}" required>
+                </label>
+
+                <label class="input-group">
+                    <span>Verification Token</span>
+                    <input type="text" name="token" placeholder="Paste the token from your email" value="{{ token }}"
+                        required>
+                </label>
+
+                <button type="submit">Verify My Email</button>
+            </form>
+
+            <div class="auth-links">
+                <a href="{{ url_for('login') }}">Back to login</a>
+            </div>
+        </div>
+    </div>
 </body>
 
 </html>

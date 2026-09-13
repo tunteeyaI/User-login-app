@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body class="dashboard-body">
+    <div class="dashboard-shell">
+        <div class="dashboard-card">
+            <div class="dashboard-header">
+                <div>
+                    <span class="badge">Online</span>
+                    <h1 class="dashboard-title">Welcome, {{ user["name"] }}</h1>
+                    <p class="dashboard-email">{{ user["email"] }}</p>
+                </div>
+            </div>
+
+            {% with messages = get_flashed_messages() %}
+            {% if messages %}
+            <div class="flash-container">
+                {% for message in messages %}
+                <div class="flash-message">{{ message }}</div>
+                {% endfor %}
+            </div>
+            {% endif %}
+            {% endwith %}
+
+            <div class="dashboard-actions">
+                <a href="{{ url_for('logout') }}" class="secondary-btn danger">Logout</a>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>

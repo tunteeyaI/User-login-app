@@ -1,22 +1,63 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 
 <head>
-    <title>Sign Up</title>
-    <link rel="stylesheet" href="{{ url_for('static',filename='style.css') }}">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign Up Page</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
-    <body>
-        <div class="container">
-            <h1>Sign Up</h1>
-            <p>Create An Acount</p>
-            <form method="POST">
-                <input type="email" name="email" placeholder="Enter your email here" required>
-                <input type="text" name="name" placeholder="Full Names" required>
-                <input type="password" name="password" placeholder="Password Is Required" required>
-                <input type="password" name="confimpassword" placeholder="Confirm Password" required>
-                <button type="submit">Create Account </button>
+
+<body class="auth-body">
+    <div class="auth-page">
+        <div class="auth-card">
+            <div class="brand">
+                <span class="brand-mark">S</span>
+                <h1>Sign Up</h1>
+            </div>
+
+            <p class="subtitle">Create an account with us to enjoy more</p>
+
+            {% with messages = get_flashed_messages() %}
+            {% if messages %}
+            <div class="flash-container">
+                {% for message in messages %}
+                <div class="flash-message">{{ message }}</div>
+                {% endfor %}
+            </div>
+            {% endif %}
+            {% endwith %}
+
+            <form method="POST" class="auth-form">
+                <label class="input-group">
+                    <span>Full Name</span>
+                    <input type="text" name="name" placeholder="Full Names" required>
+                </label>
+
+                <label class="input-group">
+                    <span>Email Address</span>
+                    <input type="email" name="email" placeholder="Email Address" required>
+                </label>
+
+                <label class="input-group">
+                    <span>Password</span>
+                    <input type="password" name="password" placeholder="Password" required>
+                </label>
+
+                <label class="input-group">
+                    <span>Confirm Password</span>
+                    <input type="password" name="confirm_password" placeholder="Confirm Password" required>
+                </label>
+
+                <button type="submit">Create account</button>
             </form>
-            <a href="{{ url_for('login') }}">Already have an account?</a>
+
+            <div class="auth-links">
+                <span class="inline-link">Already have an account? <a href="{{ url_for('login') }}">Login
+                        here</a></span>
+            </div>
         </div>
-    </body>
+    </div>
+</body>
+
 </html>

@@ -1,20 +1,53 @@
 <!DOCTYPE html>
-<html>
-    <head>
-        <title>Login page</title>
-        <link rel="stylesheet" href="{{ url_for('static',filename='style.css') }}">
-    </head>
-    <body>
-        <div class="container">
-            <h1>Login Page</h1>
-            <p>Login into an account</p>
-            <form method="POST">
-                <input type="email" name="email" placeholder="Enter your email" required>
-                <input type="password" name="password" placeholder="Enter your password here" required>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login Page</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body class="auth-body">
+    <div class="auth-page">
+        <div class="auth-card">
+            <div class="brand">
+                <span class="brand-mark">U</span>
+                <h1>Welcome back</h1>
+            </div>
+
+            <p class="subtitle">Login into your Account</p>
+
+            {% with messages = get_flashed_messages() %}
+            {% if messages %}
+            <div class="flash-container">
+                {% for message in messages %}
+                <div class="flash-message">{{ message }}</div>
+                {% endfor %}
+            </div>
+            {% endif %}
+            {% endwith %}
+
+            <form method="POST" class="auth-form">
+                <label class="input-group">
+                    <span>Email Address</span>
+                    <input type="email" name="email" placeholder="Enter your email" required>
+                </label>
+
+                <label class="input-group">
+                    <span>Password</span>
+                    <input type="password" name="password" placeholder="Enter your password" required>
+                </label>
+
                 <button type="submit">Login</button>
             </form>
-            <a href="{{ url_for('forgot_password') }}">Forgot Password?</a>
-            <a href="{{ url_for('signup') }}">Dont have an account?</a>
+
+            <div class="auth-links">
+                <a href="{{ url_for('forgot_password') }}">Forgot Password?</a>
+                <span class="inline-link">New here? <a href="{{ url_for('signup') }}">Create an account</a></span>
+            </div>
         </div>
-    </body>
+    </div>
+</body>
+
 </html>

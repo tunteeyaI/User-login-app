@@ -1,111 +1,251 @@
-import secrets #generates random numbers to secure your password
-import sqlite3 #used to store user information
-from datetime import datetime, timedelta#dates and time
-from flask import Flask,redirect,flash,render_template,request,session,url_for
-#secure the password
-from werkzeug.security import check_password_hash,generate_password_hash
-#database,api key
-from config import DATABASE,SECRET_KEY
-#create a flask app
-app=Flask(__name__)
-#attach the secret key
-app.config["SECRET_KEY"]=SECRET_KEY
+import secrets
+import sqlite3
+from datetime import datetime, timedelta
+
+from flask import Flask, redirect, flash, render_template, request, session, url_for
+from werkzeug.security import check_password_hash, generate_password_hash
+
+from config import DATABASE, SECRET_KEY
+
+
+# Create Flask app
+app = Flask(__name__)
+
+# Secret key for sessions
+app.config["SECRET_KEY"] = SECRET_KEY
+
+
+# Connect to database
 def get_db():
-    #connect to sqlite
-    connection=sqlite3.connect(DATABASE)
-    #access the data base
-    connection.row_factory=sqlite3.Row
+    connection = sqlite3.connect(DATABASE)
+    connection.row_factory = sqlite3.Row
     return connection
-#add new users to the database
+
+
+# Create users table
 def init_db():
-    #open the database using the connection
     with get_db() as connection:
-        #add a user into database
         connection.execute(
             """
-CREATE TABLE IF NOT EXIST users(
-id INTEGER PRIMARY KEY AUTOINCREMENT,
-name TEXT NOT NULL,
-email TEXT NOT NULL UNIQUE,
-password_hash TEXT NOT NULL,
-verified INTEGER NOT NULL DEFAULT 0,
-verification_token TEXT,
-reset_token TEXT,
-reset_expires TEXT
-)
-"""
+            CREATE TABLE IF NOT EXISTS users(
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                email TEXT NOT NULL UNIQUE,
+                password_hash TEXT NOT NULL,
+                verified INTEGER NOT NULL DEFAULT 0,
+                verification_token TEXT,
+                reset_token TEXT,
+                reset_expires TEXT
+            )
+            """
         )
-#login page
-@app.route("/",methods=["GET","POST"])
+
+
+def get_logged_in_user():
+    user_id = session.get("user_id")
+    if not user_id:
+        return None
+
+    with get_db() as connection:
+        return connection.execute(
+            "SELECT * FROM users WHERE id = ?",
+            (user_id,)
+        ).fetchone()
+
+
+# Login page
+@app.route("/", methods=["GET", "POST"])
 def login():
-    #check if user has submitted the form
-    if request.method=="POST":
-        email=request.form["email"].strip().lower()
-        password=request.form["password"]
-        #connect to the database
+    if request.method == "POST":
+        email = request.form["email"].strip().lower()
+        password = request.form["password"]
+
         with get_db() as connection:
-            #find the user using the email
-            user=connection.execute("SELECT * FROM users WHERE email=>?",(email,)).fetchone()
-            #check if password is correct
-            if user and check_password_hash(user["password_hash"],password):
-                #check if user is verified
+            user = connection.execute(
+                "SELECT * FROM users WHERE email = ?",
+                (email,)
+            ).fetchone()
+
+            if user and check_password_hash(user["password_hash"], password):
                 if not user["verified"]:
-                    #display an error message
-                    flash("Please verify your email to proceed")
-                    #send to verification page
-                    return redirect(url_for("verify_email",email=email))
-                #store the id for the session
-                session["user_id"]=user["id"]
-                #display the dashboard
+                    flash("Please verify your email.")
+                    return redirect(url_for("verify_email", email=email))
+
+                session["user_id"] = user["id"]
                 return redirect(url_for("dashboard"))
-            flash("Email or Password incorrect!")
-    #display html file
+
+        flash("Email or Password is incorrect.")
+
     return render_template("index.html")
-#signup function
-@app.route("/signup",methods=["GET", "POST"])
+
+
+# Signup page
+@app.route("/signup", methods=["GET", "POST"])
 def signup():
-    #check if the form is submitted
-    if request.method=="POST":
-        #get the user details
-        name=request.form["name"]
-        email=request.form["email"].lower()
-        password=request.form["password"] 
-        confirm_password=request.form["confimpassword"]
+    if request.method == "POST":
+        name = request.form["name"].strip()
+        email = request.form["email"].strip().lower()
+        password = request.form["password"]
+        confirm_password = request.form["confirm_password"]
+
         if not name or not email or not password:
-            flash("Fill all forms please!")
-        elif password!=confirm_password:
-            flash("Password has to match")
-        elif len(password)<6:
-            flash("Password must be atleast 6 characters")
+            flash("All fields are required.")
+        elif password != confirm_password:
+            flash("Passwords do not match.")
+        elif len(password) < 8:
+            flash("Password must be at least 8 characters.")
         else:
-            #create a verification token
-            verificationtoken=secrets.token_urlsafe(20)
+            verification_token = secrets.token_urlsafe(20)
+
             try:
-                #add user into the database
-                with get_db() as container:
-                    container.execute("""INSERT INTO users(name,email,password_hash,verification_token)VALUES(?,?,?,?)""",(name,email,generate_password_hash(password),verificationtoken))
-                flash("Account has been created. Please check your email to verify your account")
-                #open verification page
-                return redirect(url_for("verify_email",email=email,token=verificationtoken))
+                with get_db() as connection:
+                    connection.execute(
+                        """
+                        INSERT INTO users
+                        (name, email, password_hash, verification_token)
+                        VALUES (?, ?, ?, ?)
+                        """,
+                        (
+                            name,
+                            email,
+                            generate_password_hash(password),
+                            verification_token,
+                        ),
+                    )
+
+                flash("Account created. Verify your email.")
+                return redirect(
+                    url_for("verify_email", email=email, token=verification_token)
+                )
             except sqlite3.IntegrityError:
-                #email already exits
-                flash("This email has already been registered!")
-    #didplay sign up page
-    return render_template("signup.html2")
-#verify email
-@app.route("/verify-email",methods=["GET","POST"])
+                flash("This email is already registered.")
+
+    return render_template("signup.html")
+
+
+# Email verification
+@app.route("/verify-email", methods=["GET", "POST"])
 def verify_email():
-    #get the email and token
-    email=request.args.get("email",request.form.get("email","")).lower()
-    token=request.args.get("token",request.form.get("token",""))
-    #check if the form was submitted
-    if request.method=="POST":
-        #update the status of verified
+    email = request.args.get("email", request.form.get("email", "")).strip().lower()
+    token = request.args.get("token", request.form.get("token", ""))
+
+    if request.method == "POST":
         with get_db() as connection:
-            #verify user
-            updated=connection.execute("""UPDATE users SET verified=1,verified_token=NULL WHERE email=? AND verification_token=?""",(email,token)).rowcount
+            updated = connection.execute(
+                """
+                UPDATE users
+                SET verified = 1,
+                    verification_token = NULL
+                WHERE email = ?
+                AND verification_token = ?
+                """,
+                (email, token),
+            ).rowcount
+
         if updated:
-            flash("Email has been verified. Able to login")
+            flash("Email verified. You can now log in.")
             return redirect(url_for("login"))
-        flash("Invalid verification link")
-    return render_template("verifyemail.html",email=email,token=token)
+
+        flash("That verification link is invalid.")
+
+    return render_template("verifyemail.html", email=email, token=token)
+
+
+# Forgot password route
+@app.route("/forgot-password", methods=["GET", "POST"])
+def forgot_password():
+    if request.method == "POST":
+        email = request.form["email"].strip().lower()
+        reset_token = secrets.token_urlsafe(20)
+        expires = datetime.utcnow() + timedelta(minutes=30)
+
+        with get_db() as connection:
+            user = connection.execute(
+                "SELECT id FROM users WHERE email = ?",
+                (email,),
+            ).fetchone()
+
+            if user:
+                connection.execute(
+                    """
+                    UPDATE users
+                    SET reset_token = ?, reset_expires = ?
+                    WHERE id = ?
+                    """,
+                    (reset_token, expires.isoformat(), user["id"]),
+                )
+
+        flash("If the email exists, a reset link is ready.")
+        return redirect(url_for("reset_password", email=email, token=reset_token))
+
+    return render_template("forgotpassword.html")
+
+
+# Reset password route
+@app.route("/reset-password", methods=["GET", "POST"])
+def reset_password():
+    email = request.args.get("email", request.form.get("email", "")).strip().lower()
+    token = request.args.get("token", request.form.get("token", ""))
+
+    if request.method == "POST":
+        password = request.form["password"]
+        confirm_password = request.form["confirm_password"]
+        email = request.form.get("email", email).strip().lower()
+        token = request.form.get("token", token)
+
+        if len(password) < 8:
+            flash("Password must be 8 characters and above.")
+        elif password != confirm_password:
+            flash("Passwords must match.")
+        else:
+            with get_db() as connection:
+                user = connection.execute(
+                    """
+                    SELECT id
+                    FROM users
+                    WHERE email = ?
+                    AND reset_token = ?
+                    AND reset_expires > ?
+                    """,
+                    (email, token, datetime.utcnow().isoformat()),
+                ).fetchone()
+
+                if user:
+                    connection.execute(
+                        """
+                        UPDATE users
+                        SET password_hash = ?, reset_token = NULL, reset_expires = NULL
+                        WHERE id = ?
+                        """,
+                        (generate_password_hash(password), user["id"]),
+                    )
+                    flash("Password updated. You can now log in.")
+                    return redirect(url_for("login"))
+
+            flash("Invalid or expired reset token.")
+
+    return render_template("resetpassword.html", email=email, token=token)
+
+
+@app.route("/dashboard")
+def dashboard():
+    user = get_logged_in_user()
+    if not user:
+        flash("Please log in first.")
+        return redirect(url_for("login"))
+
+    return render_template("dashboard.html", user=user)
+
+
+@app.route("/logout")
+def logout():
+    session.pop("user_id", None)
+    flash("You have been logged out.")
+    return redirect(url_for("login"))
+
+
+init_db()
+
+
+if __name__ == "__main__":
+    app.run(debug=True)
